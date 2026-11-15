@@ -1,106 +1,122 @@
 package controle;
 
-import colecao.ColAssinaturas;
-import colecao.ColAssinantes;
-import colecao.ColPlanos;
-import entidade.*;
+import colecao.ColecaoPlanoAssinatura;
+import entidade.Assinante;
+import entidade.Assinatura;
+import entidade.Cardapio;
+import entidade.Endereco;
+import entidade.PlanoAssinatura;
+import entidade.PreferenciaAlimentar;
+import entidade.Produto;
 import fronteira.fronteiraOperadora;
+import persistencia.ArquivoCSV;
 
-import java.util.ArrayList;
 import java.util.List;
 
-/** Controller do caso de uso "Assinar Plano de Refeições". */
+/**
+ * <<Controller>> Controlador do caso de uso "Assinar Plano de Refeições".
+ */
 public class ctlAssinatura {
-    private Assinante assinanteAtual;
-    private Assinatura assinaturaAtual;
-    private double valorTotalAtual;
+    private Assinante assinante;
+    private Assinatura assinatura;
+    private ColecaoPlanoAssinatura colecaoPlanos;
+    private Cardapio cardapio;
+    private fronteiraOperadora fronteiraOp;
+    private ArquivoCSV arquivoCSV;
 
-    private final ColAssinantes colAssinantes = new ColAssinantes();
-    private final ColPlanos colPlanos = new ColPlanos();
-    private final ColAssinaturas colAssinaturas = new ColAssinaturas();
-    private final Cardapio cardapio = new Cardapio();
-    private final fronteiraOperadora operadora = new fronteiraOperadora();
+    public ctlAssinatura() {
+        this.colecaoPlanos = new ColecaoPlanoAssinatura();
+        this.cardapio = new Cardapio();
+        this.fronteiraOp = new fronteiraOperadora();
+        this.arquivoCSV = new ArquivoCSV("assinaturas.csv");
+    }
 
-    // ---- Cenário 1: autenticação por SMS ----
-    public String solicitarAutenticacao(String numeroCelular) {
-        Assinante a = colAssinantes.buscarPorCelular(numeroCelular);
-        if (a == null) {
-            a = Assinante.criar(numeroCelular);
-            colAssinantes.adicionar(a);
+    /** Mensagem 2: iniciarAssinatura(celular): void */
+    public void iniciarAssinatura(String celular) {
+        // Mensagem 3: <<create>> criar(celular): Assinante
+        this.assinante = Assinante.criar(celular);
+        // Mensagem 4: gerarCodigoConfirmacao(): void
+        this.assinante.gerarCodigoConfirmacao();
+    }
+
+    /** Mensagem 8: validarAssinante(codigo): boolean */
+    public boolean validarAssinante(String codigo) {
+        // Mensagem 9: validarCodigo(codigo): boolean
+        return this.assinante.validarCodigo(codigo);
+    }
+
+    /** Mensagem 14: listarPlanos(): List<PlanoAssinatura> */
+    public List<PlanoAssinatura> listarPlanos() {
+        // Mensagem 15: obterPlanosDisponiveis(): List<PlanoAssinatura>
+        return this.colecaoPlanos.obterPlanosDisponiveis();
+    }
+
+    /** Mensagem 18: selecionarPlano(idPlano): void */
+    public void selecionarPlano(int idPlano) {
+        // Mensagem 19: busca(idPlano): PlanoAssinatura
+        PlanoAssinatura plano = this.colecaoPlanos.busca(idPlano);
+        if (plano == null) {
+            throw new IllegalArgumentException("Plano inexistente para o ID: " + idPlano);
         }
-        assinanteAtual = a;
-        String codGerado = a.gerarCodigoConfirmacao();
-        colAssinantes.persistir();
-        return codGerado;
+        // Mensagem 21: <<create>> criar(assinante, plano): Assinatura
+        this.assinatura = Assinatura.criar(this.assinante, plano);
+        this.assinatura.setCardapio(this.cardapio);
     }
 
-    public boolean validarCodigo(String numeroCelular, String codigoInformado) {
-        Assinante a = colAssinantes.buscarPorCelular(numeroCelular);
-        if (a == null) return false;
-        boolean valido = a.validarCodigoSMS(codigoInformado);
-        if (valido) assinanteAtual = a;
-        colAssinantes.persistir();
-        return valido;
+    /** Mensagem 25: registrarPreferencias(tipoDieta): List<Produto> */
+    public List<Produto> registrarPreferencias(String tipoDieta) {
+        // Mensagem 26: adicionarPreferencia(tipoDieta): PreferenciaAlimentar
+        PreferenciaAlimentar pref = this.assinante.adicionarPreferencia(tipoDieta);
+        // Mensagem 28: filtrarPorPreferencia(pref): List<Produto>
+        return this.cardapio.filtrarPorPreferencia(pref);
     }
 
-    // ---- Cenário 2: planos e preferências ----
-    public List<PlanoAssinatura> obterPlanosDisponiveis() {
-        return colPlanos.listarDisponiveis();
+    /** Mensagem 32: adicionarProdutoPedido(idProduto, qtd): boolean */
+    public boolean adicionarProdutoPedido(int idProduto, int qtd) {
+        // Mensagem 33: adicionarProduto(idProduto, qtd): boolean
+        return this.assinatura.adicionarProduto(idProduto, qtd);
     }
 
-    public void contratarPlano(int idPlano) {
-        PlanoAssinatura plano = colPlanos.buscar(idPlano);
-        if (plano == null) throw new IllegalArgumentException("Plano inexistente: " + idPlano);
-        assinaturaAtual = Assinatura.criar(assinanteAtual, plano);
-        colAssinaturas.salvar(assinaturaAtual);
-    }
-
-    public List<ItemCardapio> registrarPreferencias(List<String> tiposDieta) {
-        for (String tipo : tiposDieta) assinanteAtual.adicionarPreferencia(tipo);
-        colAssinantes.persistir();
-        List<PreferenciaAlimentar> prefs = assinanteAtual.getPreferencias();
-        return cardapio.filtrarCardapio(prefs);
-    }
-
-    // ---- Cenário 3: montagem do pedido e endereços ----
-    public boolean adicionarItemPedido(int idItem, int qtd) {
-        ItemCardapio item = cardapio.buscarItem(idItem);
-        if (item == null) return false;
-        boolean ok = assinaturaAtual.incluirItemNoPedido(item, qtd);
-        if (ok) colAssinaturas.salvar(assinaturaAtual);
-        return ok;
-    }
-
+    /** Mensagem 43: obterResumoPedido(): String */
     public String obterResumoPedido() {
-        return assinaturaAtual.obterComposicaoPedido();
+        // Mensagem 44: obterComposicaoPedido(): String
+        return this.assinatura.obterComposicaoPedido();
     }
 
-    public double registrarEnderecos(String dadosEntrega, String dadosCobranca) {
-        EnderecoEntrega endEntrega = assinanteAtual.cadastrarEnderecos(dadosEntrega, dadosCobranca);
-        valorTotalAtual = assinaturaAtual.prepararCheckout(endEntrega);
-        colAssinantes.persistir();
-        colAssinaturas.salvar(assinaturaAtual);
-        return valorTotalAtual;
+    /** Mensagem 47: registrarEntrega(dadosEndereco): void */
+    public void registrarEntrega(String dadosEndereco) {
+        // Mensagem 48: cadastrarEndereco(dadosEndereco): Endereco
+        Endereco endEntrega = this.assinante.cadastrarEndereco(dadosEndereco);
+        // Mensagem 50: configurarEntrega(endEntrega): void
+        this.assinatura.configurarEntrega(endEntrega);
     }
 
-    // ---- Cenário 4: pagamento ----
-    public String processarPagamento(String dadosCartao) {
-        Pagamento pag = assinaturaAtual.criarTentativaPagamento(dadosCartao);
-        String codAut = operadora.solicitarAutorizacao(dadosCartao, valorTotalAtual);
-        boolean aprovado = assinaturaAtual.registrarResultadoPagamento(pag, codAut);
-        String retorno;
-        if (aprovado) {
-            retorno = assinaturaAtual.ativarAssinatura();
+    /** Mensagem 55: processarPagamento(dadosCartao): boolean */
+    public boolean processarPagamento(String dadosCartao) {
+        // Mensagem 56: obterValorAssinatura(): double
+        double valor = this.assinatura.obterValorAssinatura();
+        // Mensagem 58: solicitarAutorizacao(dadosCartao, valor): boolean
+        boolean aut = this.fronteiraOp.solicitarAutorizacao(dadosCartao, valor);
+        if (aut) {
+            // Mensagem 60: confirmarAssinatura(dadosCartao, valor): void
+            this.assinatura.confirmarAssinatura(dadosCartao, valor);
+            this.arquivoCSV.salvarAssinatura(this.assinatura);
         } else {
-            assinaturaAtual.manterAguardandoPagamento();
-            retorno = "Pagamento Nao Autorizado";
+            // Mensagem 65: manterAguardandoPagamento(): void
+            this.assinatura.manterAguardandoPagamento();
         }
-        colAssinaturas.salvar(assinaturaAtual);
-        return retorno;
+        return aut;
     }
 
-    public void encerrarSemAtivacao() {
-        assinaturaAtual.alterarStatus("Encerrada Sem Ativacao");
-        colAssinaturas.salvar(assinaturaAtual);
+    public Assinante getAssinante() {
+        return assinante;
+    }
+
+    public Assinatura getAssinatura() {
+        return assinatura;
+    }
+
+    public ArquivoCSV getArquivoCSV() {
+        return arquivoCSV;
     }
 }

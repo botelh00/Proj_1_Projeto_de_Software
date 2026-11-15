@@ -1,14 +1,27 @@
 package entidade;
 
+/**
+ * <<Entidade>> ItemPedido (associação entre Pedido e Produto).
+ */
 public class ItemPedido {
-    private final ItemCardapio item;
-    private final int quantidade;
+    private int quantidade;
+    private Produto produto;
 
-    private ItemPedido(ItemCardapio item, int qtd) { this.item = item; this.quantidade = qtd; }
+    private ItemPedido(Produto prod, int qtd) {
+        this.produto = prod;
+        this.quantidade = qtd;
+    }
 
-    /** <<create>> criar(item, qtd) */
-    public static ItemPedido criar(ItemCardapio item, int qtd) { return new ItemPedido(item, qtd); }
+    /** Mensagem 40: <<create>> criar(prod, qtd): ItemPedido */
+    public static ItemPedido criar(Produto prod, int qtd) {
+        return new ItemPedido(prod, qtd);
+    }
 
-    public int getQuantidade() { return quantidade; }
-    public ItemCardapio getItem() { return item; }
+    public int getQuantidade() {
+        return quantidade;
+    }
+
+    public Produto getProduto() {
+        return produto;
+    }
 }

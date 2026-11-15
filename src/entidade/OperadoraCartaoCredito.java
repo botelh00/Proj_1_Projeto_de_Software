@@ -1,17 +1,33 @@
 package entidade;
 
-import java.util.Random;
-
-/** Ator externo (simulado): cartões com 16 dígitos terminados em 0 são recusados. */
+/**
+ * <<Entidade>> OperadoraCartaoCredito (sistema autorizador simulado).
+ */
 public class OperadoraCartaoCredito {
-    private final String nomeOperadora = "OperadoraSimulada";
+    private String nomeOperadora;
 
-    public String enviarTransacao(String dadosCartao, double valorTotal) {
-        String d = dadosCartao.replaceAll("\\D", "");
-        if (d.length() == 16 && !d.endsWith("0"))
-            return "AUT" + (100000 + new Random().nextInt(900000));
-        return "NEGADO";
+    public OperadoraCartaoCredito() {
+        this.nomeOperadora = "Operadora CredCard S.A.";
     }
 
-    public String getNomeOperadora() { return nomeOperadora; }
+    /**
+     * Mensagem 59: autorizarTransacao(dadosCartao, valor): boolean
+     * Retorna false para cartões inválidos, terminados em "0000" ou contendo "RECUSADO"/"INVALIDO" (teste FA3),
+     * e true para cartões válidos.
+     */
+    public boolean autorizarTransacao(String dadosCartao, double valor) {
+        if (dadosCartao == null || dadosCartao.isBlank() || valor <= 0) {
+            return false;
+        }
+        String limpo = dadosCartao.trim().toUpperCase();
+        if (limpo.contains("RECUSADO") || limpo.contains("INVALIDO") || limpo.endsWith("0000") || limpo.endsWith("0")) {
+            return false;
+        }
+        String digitos = limpo.replaceAll("\\D", "");
+        return digitos.length() >= 12;
+    }
+
+    public String getNomeOperadora() {
+        return nomeOperadora;
+    }
 }

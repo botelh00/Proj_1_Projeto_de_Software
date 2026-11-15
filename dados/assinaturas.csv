@@ -1,0 +1,3 @@
+Protocolo;DataInicio;StatusAssinatura;CelularAssinante;PreferenciaAlimentar;Plano;ValorTotal;ItensPedido;StatusPedido;EnderecoEntrega;PrevisaoPrimeiraEntrega;StatusEntrega;StatusPagamento
+MR-20261115-6767;15/11/2026 17:54:24;Ativa;11987654321;Vegetariana;Plano Semanal;89.00;2x Lasanha de Berinjela | 2x Arroz Integral com Brocolis | 1x Salada de Frutas Frescas;Aprovado;Rua das Flores, 123 (Apto/Casa) - CEP 01000-000;18/11/2026;Programada;Aprovado
+MR-20261115-6355;15/11/2026 17:57:18;Ativa;11987654321;Vegetariana;Plano Semanal;89.00;2x Lasanha de Berinjela | 2x Arroz Integral com Brocolis | 1x Salada de Frutas Frescas;Aprovado;Rua das Flores, 123 (Apto/Casa) - CEP 01000-000;18/11/2026;Programada;Aprovado

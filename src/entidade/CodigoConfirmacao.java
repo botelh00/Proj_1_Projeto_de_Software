@@ -1,51 +1,56 @@
 package entidade;
 
-import java.time.LocalDateTime;
-import java.util.Random;
-
+/**
+ * <<Entidade>> CodigoConfirmacao para autenticação por SMS.
+ */
 public class CodigoConfirmacao {
-    private String codigoGerado;
-    private LocalDateTime dataHoraEnvio;
+    private String codigoSMS;
     private int tentativas;
     private boolean validado;
-    private boolean encerrado;
 
-    private CodigoConfirmacao() { }
-
-    /** <<create>> criar() */
-    public static CodigoConfirmacao criar() {
-        return new CodigoConfirmacao();
+    private CodigoConfirmacao(String celular) {
+        String fixo = System.getProperty("sms.codigo", "123456");
+        this.codigoSMS = fixo;
+        this.tentativas = 0;
+        this.validado = false;
     }
 
-    public static CodigoConfirmacao restaurar(String cod, LocalDateTime dh, int tentativas,
-                                              boolean validado, boolean encerrado) {
-        CodigoConfirmacao c = new CodigoConfirmacao();
-        c.codigoGerado = cod; c.dataHoraEnvio = dh; c.tentativas = tentativas;
-        c.validado = validado; c.encerrado = encerrado;
-        return c;
+    /** Mensagem 5: <<create>> criar(celular): CodigoConfirmacao */
+    public static CodigoConfirmacao criar(String celular) {
+        return new CodigoConfirmacao(celular);
     }
 
-    public String gerarCodigoSMS() {
-        String fixo = System.getProperty("sms.fixo"); // apenas para demonstração/testes
-        codigoGerado = fixo != null ? fixo : String.format("%06d", new Random().nextInt(1_000_000));
-        dataHoraEnvio = LocalDateTime.now();
-        tentativas = 0; validado = false; encerrado = false;
-        return codigoGerado;
+    /** Mensagem 6: enviarCodigoSMS(): void */
+    public void enviarCodigoSMS() {
+        System.out.println("  [SMS Enviado] Código de confirmação enviado para o celular: " + codigoSMS);
     }
 
-    public boolean conferirCodigo(String codigoInformado) {
-        if (encerrado || codigoGerado == null) return false;
-        if (codigoGerado.equals(codigoInformado)) { validado = true; return true; }
+    /** Mensagem 10: conferirCodigo(codigo): boolean */
+    public boolean conferirCodigo(String codigo) {
+        if (tentativas >= 3) {
+            return false;
+        }
+        if (codigoSMS != null && codigoSMS.equals(codigo)) {
+            this.validado = true;
+            return true;
+        }
         return false;
     }
 
-    public int registrarTentativaInvalida() { return ++tentativas; }
+    /** Mensagem 12: registrarTentativaInvalida(): void */
+    public void registrarTentativaInvalida() {
+        this.tentativas++;
+    }
 
-    public void encerrarValidacao() { encerrado = true; }
+    public String getCodigoSMS() {
+        return codigoSMS;
+    }
 
-    public String getCodigoGerado() { return codigoGerado; }
-    public LocalDateTime getDataHoraEnvio() { return dataHoraEnvio; }
-    public int getTentativas() { return tentativas; }
-    public boolean isValidado() { return validado; }
-    public boolean isEncerrado() { return encerrado; }
+    public int getTentativas() {
+        return tentativas;
+    }
+
+    public boolean isValidado() {
+        return validado;
+    }
 }

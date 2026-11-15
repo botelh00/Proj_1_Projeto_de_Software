@@ -1,192 +1,135 @@
 package fronteira;
 
 import controle.ctlAssinatura;
-import entidade.ItemCardapio;
+import entidade.Assinatura;
 import entidade.PlanoAssinatura;
+import entidade.Produto;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
+import java.util.Locale;
 
-/** Fronteira (interface de console) do caso de uso "Assinar Plano de Refeições". */
+/**
+ * <<Fronteira>> Interface principal com o ator Assinante.
+ */
 public class viewAssinatura {
-    private final ctlAssinatura ctl;
-    private final Scanner in = new Scanner(System.in, "UTF-8");
+    private ctlAssinatura ctl;
 
-    // estado de tela (controle dos laços FA1 e FA3)
-    private boolean codigoValidado;
-    private int tentativas;
-    private boolean pagamentoAprovado;
-
-    public viewAssinatura(ctlAssinatura ctl) { this.ctl = ctl; }
-
-    /** Conduz o ator pelo cenário completo (fluxo principal + FA1, FA2 e FA3). */
-    public void iniciar() {
-        System.out.println("=== Minha Refeição - Assinar Plano de Refeições ===");
-
-        // --- Autenticação (FA1) ---
-        String celular = ler("Informe seu celular (somente números): ");
-        informarCelular(celular);
-        tentativas = 0;
-        codigoValidado = false;
-        while (tentativas < 3 && !codigoValidado) {
-            informarCodigo(celular, ler("Informe o código recebido por SMS: "));
-        }
-        if (!codigoValidado) return;
-
-        // --- Planos ---
-        visualizarPlanos();
-        while (true) {
-            try {
-                selecionarPlano(Integer.parseInt(ler("Escolha o plano (id): ")));
-                break;
-            } catch (IllegalArgumentException e) {
-                System.out.println("Plano inválido, tente novamente.");
-            }
-        }
-
-        // --- Preferências ---
-        String dietas = ler("Preferências (separe por vírgula; Enter = nenhuma). Ex.: Vegetariana, Vegana, Sem Gluten, Sem Lactose: ");
-        List<String> tipos = new ArrayList<>();
-        for (String d : dietas.split(",")) if (!d.isBlank()) tipos.add(d.trim());
-        informarPreferencias(tipos);
-
-        // --- Seleção de itens (FA2) ---
-        System.out.println("\nSelecione Pratos Principais, Acompanhamentos e Sobremesas.");
-        while (true) {
-            int id = Integer.parseInt(ler("ID do item (0 para finalizar): "));
-            if (id == 0) break;
-            int qtd = Integer.parseInt(ler("Quantidade: "));
-            selecionarItem(id, qtd);
-        }
-        visualizarResumo();
-
-        // --- Endereços ---
-        String entrega = lerEndereco("ENTREGA");
-        String cobranca = ler("Cobrança igual à entrega? (s/n): ").equalsIgnoreCase("s") ? entrega : lerEndereco("COBRANÇA");
-        confirmarEnderecos(entrega, cobranca);
-
-        // --- Pagamento (FA3) ---
-        pagamentoAprovado = false;
-        while (!pagamentoAprovado) {
-            informarPagamento(ler("Número do cartão (16 dígitos): "));
-            if (!pagamentoAprovado) {
-                if (!ler("Tentar novamente com outro cartão? (s/n): ").equalsIgnoreCase("s")) {
-                    cancelarTentativaPagamento();
-                    System.out.println("Contratação encerrada sem ativação.");
-                    break;
-                }
-            }
-        }
+    public viewAssinatura() {
+        this.ctl = new ctlAssinatura();
     }
 
-    // ===== Estímulos do ator (mensagens "Ator -> View" do diagrama) =====
-    public void informarCelular(String numeroCelular) {
-        String codGerado = ctl.solicitarAutenticacao(numeroCelular);
-        enviarSMSEExibirTelaCodigo(codGerado);
+    public viewAssinatura(ctlAssinatura ctl) {
+        this.ctl = ctl;
     }
 
-    public void informarCodigo(String numeroCelular, String codigoInformado) {
-        tentativas++;
-        boolean valido = ctl.validarCodigo(numeroCelular, codigoInformado);
-        if (valido) {
-            codigoValidado = true;
-            exibirConfirmacaoValidacao();
+    /** Mensagem 1: solicitarAssinatura(celular): void */
+    public void solicitarAssinatura(String celular) {
+        System.out.println("\n[1: solicitarAssinatura] Celular informado: " + celular);
+        // Mensagem 2: iniciarAssinatura(celular): void
+        ctl.iniciarAssinatura(celular);
+    }
+
+    /** Mensagem 7: autenticarAssinante(codigo): void */
+    public void autenticarAssinante(String codigo) {
+        System.out.println("\n[7: autenticarAssinante] Código informado pelo usuário: " + codigo);
+        // Mensagem 8: validarAssinante(codigo): boolean
+        boolean autenticado = ctl.validarAssinante(codigo);
+        if (autenticado) {
+            System.out.println("  -> [OK] Assinante autenticado com sucesso!");
         } else {
-            informarCodigoInvalidoOuSolicitarNovo(tentativas);
+            int tentativas = ctl.getAssinante().getCodigoConfirmacao().getTentativas();
+            System.out.println("  -> [ERRO - FA1] Código SMS inválido! Tentativa inválida registrada (" + tentativas + "/3).");
         }
     }
 
-    public void visualizarPlanos() {
-        apresentarPlanos(ctl.obterPlanosDisponiveis());
+    /** Mensagem 13: consultarPlanos(): void */
+    public void consultarPlanos() {
+        System.out.println("\n[13: consultarPlanos] Consultando planos de assinatura disponíveis:");
+        // Mensagem 14: listarPlanos(): List<PlanoAssinatura>
+        List<PlanoAssinatura> planos = ctl.listarPlanos();
+        for (PlanoAssinatura p : planos) {
+            System.out.println("  " + p.getDadosPlano());
+        }
     }
 
-    public void selecionarPlano(int idPlano) {
-        ctl.contratarPlano(idPlano);
-        exibirTelaPreferencias();
+    /** Mensagem 17: contratarPlano(idPlano): void */
+    public void contratarPlano(int idPlano) {
+        System.out.println("\n[17: contratarPlano] Selecionando plano ID: " + idPlano);
+        // Mensagem 18: selecionarPlano(idPlano): void
+        ctl.selecionarPlano(idPlano);
+        PlanoAssinatura plano = ctl.getAssinatura().getPlano();
+        System.out.println("  -> [OK] Assinatura criada com o plano: " + plano.getNomePlano()
+                + " (Limite: " + plano.getLimiteRefeicoes() + " refeições).");
     }
 
-    public void informarPreferencias(List<String> tiposDieta) {
-        apresentarCardapioFiltrado(ctl.registrarPreferencias(tiposDieta));
+    /** Mensagem 24: definirPreferenciasAlimentares(tipoDieta): void */
+    public void definirPreferenciasAlimentares(String tipoDieta) {
+        System.out.println("\n[24: definirPreferenciasAlimentares] Preferência informada: " + tipoDieta);
+        // Mensagem 25: registrarPreferencias(tipoDieta): List<Produto>
+        List<Produto> produtosCompativeis = ctl.registrarPreferencias(tipoDieta);
+        System.out.println("  -> Cardápio filtrado (" + produtosCompativeis.size() + " produtos compatíveis):");
+        for (Produto prod : produtosCompativeis) {
+            System.out.println("     " + prod);
+        }
     }
 
-    public void selecionarItem(int idItem, int qtd) {
-        if (ctl.adicionarItemPedido(idItem, qtd)) atualizarStatusItemOK();
-        else informarLimiteExcedidoESolicitarAjuste();
-    }
-
-    public void visualizarResumo() {
-        apresentarResumoESolicitarEndereco(ctl.obterResumoPedido());
-    }
-
-    public void confirmarEnderecos(String dadosEntrega, String dadosCobranca) {
-        apresentarValorESolicitarPagamento(ctl.registrarEnderecos(dadosEntrega, dadosCobranca));
-    }
-
-    public void informarPagamento(String dadosCartao) {
-        String confirmacao = ctl.processarPagamento(dadosCartao);
-        if (confirmacao.equals("Pagamento Nao Autorizado")) {
-            informarPagamentoRecusadoSolicitarNovoCartao();
+    /** Mensagem 31: incluirRefeicao(idProduto, qtd): void */
+    public void incluirRefeicao(int idProduto, int qtd) {
+        System.out.println("\n[31: incluirRefeicao] Solicitando inclusão do produto ID=" + idProduto + ", Qtd=" + qtd);
+        // Mensagem 32: adicionarProdutoPedido(idProduto, qtd): boolean
+        boolean adicionado = ctl.adicionarProdutoPedido(idProduto, qtd);
+        if (adicionado) {
+            System.out.println("  -> [OK] Produto adicionado ao pedido! Total parcial: "
+                    + ctl.getAssinatura().getPedido().getTotalRefeicoes() + "/"
+                    + ctl.getAssinatura().getPlano().getLimiteRefeicoes() + " refeições.");
         } else {
-            pagamentoAprovado = true;
-            apresentarConfirmacaoEProtocolo(confirmacao);
+            System.out.println("  -> [BLOQUEADO - FA2] Quantidade excede o limite de "
+                    + ctl.getAssinatura().getPlano().getLimiteRefeicoes()
+                    + " refeições do plano ou produto inválido. Ajuste a quantidade!");
         }
     }
 
-    public void cancelarTentativaPagamento() { ctl.encerrarSemAtivacao(); }
-
-    // ===== Respostas ao ator (mensagens "View -> Ator" do diagrama) =====
-    public void enviarSMSEExibirTelaCodigo(String codGerado) {
-        System.out.println("[SMS simulado] Seu código de confirmação é: " + codGerado);
+    /** Mensagem 42: revisarPedido(): void */
+    public void revisarPedido() {
+        System.out.println("\n[42: revisarPedido] Exibindo composição atual do pedido:");
+        // Mensagem 43: obterResumoPedido(): String
+        String resumo = ctl.obterResumoPedido();
+        System.out.println(resumo);
     }
 
-    public void exibirConfirmacaoValidacao() { System.out.println("Celular validado com sucesso!\n"); }
-
-    public void informarCodigoInvalidoOuSolicitarNovo(int numTentativas) {
-        if (numTentativas >= 3) System.out.println("Código inválido. Limite de 3 tentativas excedido: validação encerrada. Solicite um novo código.");
-        else System.out.println("Código inválido. Tentativas restantes: " + (3 - numTentativas));
+    /** Mensagem 46: agendarEntrega(dadosEndereco): void */
+    public void agendarEntrega(String dadosEndereco) {
+        System.out.println("\n[46: agendarEntrega] Informando endereço de entrega: " + dadosEndereco);
+        // Mensagem 47: registrarEntrega(dadosEndereco): void
+        ctl.registrarEntrega(dadosEndereco);
+        Assinatura ass = ctl.getAssinatura();
+        System.out.printf(Locale.forLanguageTag("pt-BR"),
+                "  -> [OK] Entrega configurada para: %s%n  -> Status da Assinatura: %s | Valor para pagamento: R$ %.2f%n",
+                ass.getEntrega().getEndereco(), ass.getStatus(), ass.obterValorAssinatura());
     }
 
-    public void apresentarPlanos(List<PlanoAssinatura> listaPlanos) {
-        System.out.println("\nPlanos disponíveis:");
-        for (PlanoAssinatura p : listaPlanos) System.out.println("  " + p.getDadosPlano());
+    /** Mensagem 54: efetuarPagamento(dadosCartao): void */
+    public void efetuarPagamento(String dadosCartao) {
+        System.out.println("\n[54: efetuarPagamento] Processando pagamento com cartão: " + dadosCartao);
+        // Mensagem 55: processarPagamento(dadosCartao): boolean
+        boolean aprovado = ctl.processarPagamento(dadosCartao);
+        Assinatura ass = ctl.getAssinatura();
+        if (aprovado) {
+            System.out.println("  -> [APROVADO] Transação autorizada pela operadora!");
+            System.out.println("  -> Status da Assinatura : " + ass.getStatus());
+            System.out.println("  -> Status do Pedido     : " + ass.getPedido().getStatusPedido());
+            System.out.println("  -> Status da Entrega    : " + ass.getEntrega().getStatusEntrega()
+                    + " (Previsão 1ª Entrega: " + ass.getEntrega().getDataPrevisaoFormatada() + ")");
+            System.out.println("  -> Número de Protocolo  : " + ass.getNumeroProtocolo());
+            System.out.println("  -> Registro salvo em CSV: " + ctl.getArquivoCSV().getCaminho().toAbsolutePath());
+        } else {
+            System.out.println("  -> [RECUSADO - FA3] Transação negada pela operadora de cartão!");
+            System.out.println("  -> Status da Assinatura mantido como: " + ass.getStatus());
+            System.out.println("  -> Por favor, informe um novo cartão de crédito válido.");
+        }
     }
 
-    public void exibirTelaPreferencias() { System.out.println("Plano contratado. Informe suas preferências alimentares."); }
-
-    public void apresentarCardapioFiltrado(List<ItemCardapio> itensFiltrados) {
-        System.out.println("\nCardápio compatível com suas preferências:");
-        for (ItemCardapio i : itensFiltrados)
-            System.out.printf("  [%d] %-22s %-16s (%s)%n", i.getIdItem(), i.getNome(), i.getCategoria(), i.getIngredientes());
-    }
-
-    public void atualizarStatusItemOK() { System.out.println("Item adicionado ao pedido."); }
-
-    public void informarLimiteExcedidoESolicitarAjuste() {
-        System.out.println("Item inválido ou quantidade incompatível com o limite do plano. Ajuste a quantidade.");
-    }
-
-    public void apresentarResumoESolicitarEndereco(String resumo) {
-        System.out.println("\nResumo do pedido:\n" + resumo + "\nInforme os endereços.");
-    }
-
-    public void apresentarValorESolicitarPagamento(double valorTotal) {
-        System.out.printf(java.util.Locale.forLanguageTag("pt-BR"), "%nValor total da assinatura: R$ %.2f%n", valorTotal);
-    }
-
-    public void apresentarConfirmacaoEProtocolo(String confirmacao) { System.out.println("\n" + confirmacao); }
-
-    public void informarPagamentoRecusadoSolicitarNovoCartao() { System.out.println("Pagamento não autorizado pela operadora."); }
-
-    // ===== utilitários de console =====
-    private String ler(String msg) {
-        System.out.print(msg);
-        return in.hasNextLine() ? in.nextLine().trim() : "";
-    }
-
-    private String lerEndereco(String titulo) {
-        System.out.println("Endereço de " + titulo + ":");
-        String log = ler("  Logradouro: "), num = ler("  Número: "), comp = ler("  Complemento: "), cep = ler("  CEP: ");
-        return log + "|" + num + "|" + comp + "|" + cep;
+    public ctlAssinatura getCtl() {
+        return ctl;
     }
 }

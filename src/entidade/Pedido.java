@@ -1,55 +1,87 @@
 package entidade;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import colecao.ColecaoItemPedido;
 
+import java.util.Date;
+
+/**
+ * <<Entidade>> Pedido vinculado à Assinatura.
+ */
 public class Pedido {
-    private static int sequencia = 1;
-    private final int idPedido;
-    private final LocalDate dataSelecao;
+    private Date dataSelecao;
     private String statusPedido;
-    private final List<ItemPedido> itensSelecionados = new ArrayList<>();
-    private EnderecoEntrega enderecoEntrega;
+    private ColecaoItemPedido colecaoItens;
+    private Entrega entrega;
 
     private Pedido() {
-        idPedido = sequencia++;
-        dataSelecao = LocalDate.now();
-        statusPedido = "Em Selecao";
+        this.dataSelecao = new Date();
+        this.statusPedido = "Em Selecao";
+        // Mensagem 23: <<create>> criar(): ColecaoItemPedido
+        this.colecaoItens = ColecaoItemPedido.criar();
     }
 
-    /** <<create>> criar() */
-    public static Pedido criar() { return new Pedido(); }
-
-    public int totalItens() {
-        int t = 0;
-        for (ItemPedido i : itensSelecionados) t += i.getQuantidade();
-        return t;
+    /** Mensagem 22: <<create>> criar(): Pedido */
+    public static Pedido criar() {
+        return new Pedido();
     }
 
-    public boolean validarLimiteItens(int qtd, int limite) {
-        return qtd > 0 && totalItens() + qtd <= limite;
+    public int getTotalRefeicoes() {
+        int soma = 0;
+        for (ItemPedido item : colecaoItens.getItens()) {
+            soma += item.getQuantidade();
+        }
+        return soma;
     }
 
-    public void addItem(ItemCardapio item, int qtd) {
-        itensSelecionados.add(ItemPedido.criar(item, qtd));
+    /** Mensagem 35: validarLimite(qtd, limite): boolean */
+    public boolean validarLimite(int qtd, int limite) {
+        return qtd > 0 && (getTotalRefeicoes() + qtd) <= limite;
     }
 
+    /** Mensagem 39: addProduto(prod, qtd): void */
+    public void addProduto(Produto prod, int qtd) {
+        // Mensagem 40: <<create>> criar(prod, qtd): ItemPedido
+        ItemPedido item = ItemPedido.criar(prod, qtd);
+        // Mensagem 41: addItem(item): void
+        colecaoItens.addItem(item);
+    }
+
+    /** Mensagem 45: calcularComposicao(): String */
     public String calcularComposicao() {
         StringBuilder sb = new StringBuilder();
-        for (ItemPedido i : itensSelecionados)
-            sb.append(" - ").append(i.getQuantidade()).append("x ").append(i.getItem().getNome())
-              .append(" (").append(i.getItem().getCategoria()).append(")\n");
-        sb.append("Total de refeições: ").append(totalItens());
+        for (ItemPedido item : colecaoItens.getItens()) {
+            sb.append(String.format("  - %dx %s [%s]%n",
+                    item.getQuantidade(),
+                    item.getProduto().getNome(),
+                    item.getProduto().getCategoria()));
+        }
+        sb.append("  Total de refeições selecionadas: ").append(getTotalRefeicoes());
         return sb.toString();
     }
 
-    public void vincularEnderecoEntrega(EnderecoEntrega endEntrega) { this.enderecoEntrega = endEntrega; }
-    public void alterarStatus(String novoStatus) { this.statusPedido = novoStatus; }
+    /** Mensagem 52: vincularEntrega(entrega): void */
+    public void vincularEntrega(Entrega entrega) {
+        this.entrega = entrega;
+    }
 
-    public int getIdPedido() { return idPedido; }
-    public LocalDate getDataSelecao() { return dataSelecao; }
-    public String getStatusPedido() { return statusPedido; }
-    public List<ItemPedido> getItensSelecionados() { return itensSelecionados; }
-    public EnderecoEntrega getEnderecoEntrega() { return enderecoEntrega; }
+    /** Mensagem 63: aprovarPedido(): void */
+    public void aprovarPedido() {
+        this.statusPedido = "Aprovado";
+    }
+
+    public Date getDataSelecao() {
+        return dataSelecao;
+    }
+
+    public String getStatusPedido() {
+        return statusPedido;
+    }
+
+    public ColecaoItemPedido getColecaoItens() {
+        return colecaoItens;
+    }
+
+    public Entrega getEntrega() {
+        return entrega;
+    }
 }

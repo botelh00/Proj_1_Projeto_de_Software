@@ -1,59 +1,127 @@
 package persistencia;
 
+import entidade.Assinatura;
+import entidade.ItemPedido;
+import entidade.Pagamento;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/** Utilitário de persistência: lê/grava arquivos CSV (separador ';') na pasta ./dados. */
+/**
+ * Utilitário de persistência em arquivo CSV para registrar assinaturas confirmadas.
+ */
 public class ArquivoCSV {
     private static final String SEP = ";";
     private final Path caminho;
 
-    public ArquivoCSV(String nome) {
-        caminho = Paths.get("dados", nome);
+    public ArquivoCSV() {
+        this("assinaturas.csv");
+    }
+
+    public ArquivoCSV(String nomeArquivo) {
+        this.caminho = Paths.get("dados", nomeArquivo);
         try {
             Files.createDirectories(caminho.getParent());
-            if (!Files.exists(caminho)) Files.createFile(caminho);
+            if (!Files.exists(caminho) || Files.size(caminho) == 0) {
+                String cabecalho = String.join(SEP,
+                        "Protocolo",
+                        "DataInicio",
+                        "StatusAssinatura",
+                        "CelularAssinante",
+                        "PreferenciaAlimentar",
+                        "Plano",
+                        "ValorTotal",
+                        "ItensPedido",
+                        "StatusPedido",
+                        "EnderecoEntrega",
+                        "PrevisaoPrimeiraEntrega",
+                        "StatusEntrega",
+                        "StatusPagamento"
+                ) + System.lineSeparator();
+                Files.writeString(caminho, cabecalho, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public List<String[]> ler() {
+    public void salvarAssinatura(Assinatura assinatura) {
+        if (assinatura == null) {
+            return;
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        String dataInicio = assinatura.getDataInicio() != null ? sdf.format(assinatura.getDataInicio()) : "";
+        String celular = assinatura.getAssinante() != null ? assinatura.getAssinante().getNumeroCelular() : "";
+        String dieta = (assinatura.getAssinante() != null && assinatura.getAssinante().getPreferenciaAlimentar() != null)
+                ? assinatura.getAssinante().getPreferenciaAlimentar().getTipoDieta()
+                : "Tradicional";
+        String nomePlano = assinatura.getPlano() != null ? assinatura.getPlano().getNomePlano() : "";
+        String valor = assinatura.getPlano() != null
+                ? String.format(Locale.US, "%.2f", assinatura.getPlano().getValorTotal())
+                : "0.00";
+
+        List<String> descItens = new ArrayList<>();
+        if (assinatura.getPedido() != null && assinatura.getPedido().getColecaoItens() != null) {
+            for (ItemPedido item : assinatura.getPedido().getColecaoItens().getItens()) {
+                descItens.add(item.getQuantidade() + "x " + item.getProduto().getNome());
+            }
+        }
+        String itensStr = String.join(" | ", descItens);
+        String statusPedido = assinatura.getPedido() != null ? assinatura.getPedido().getStatusPedido() : "";
+        String enderecoStr = (assinatura.getEntrega() != null && assinatura.getEntrega().getEndereco() != null)
+                ? assinatura.getEntrega().getEndereco().toString()
+                : "";
+        String previsaoEntrega = assinatura.getEntrega() != null
+                ? assinatura.getEntrega().getDataPrevisaoFormatada()
+                : "";
+        String statusEntrega = assinatura.getEntrega() != null
+                ? assinatura.getEntrega().getStatusEntrega()
+                : "";
+        String statusPagamento = "Pendente";
+        if (assinatura.getPagamentos() != null && !assinatura.getPagamentos().isEmpty()) {
+            Pagamento ult = assinatura.getPagamentos().get(assinatura.getPagamentos().size() - 1);
+            statusPagamento = ult.getStatusPagamento();
+        }
+
+        String linha = String.join(SEP,
+                limpar(assinatura.getNumeroProtocolo()),
+                limpar(dataInicio),
+                limpar(assinatura.getStatus()),
+                limpar(celular),
+                limpar(dieta),
+                limpar(nomePlano),
+                limpar(valor),
+                limpar(itensStr),
+                limpar(statusPedido),
+                limpar(enderecoStr),
+                limpar(previsaoEntrega),
+                limpar(statusEntrega),
+                limpar(statusPagamento)
+        ) + System.lineSeparator();
+
         try {
-            List<String[]> linhas = new ArrayList<>();
-            for (String l : Files.readAllLines(caminho, StandardCharsets.UTF_8))
-                if (!l.isBlank()) linhas.add(l.split(SEP, -1));
-            return linhas;
+            Files.writeString(caminho, linha, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public void gravar(List<String[]> linhas) {
-        List<String> saida = new ArrayList<>();
-        for (String[] l : linhas) saida.add(String.join(SEP, l));
-        try {
-            Files.write(caminho, saida, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    public Path getCaminho() {
+        return caminho;
     }
 
-    /** Remove as linhas cuja coluna 'col' vale 'chave' e acrescenta as novas linhas. */
-    public void substituir(int col, String chave, List<String[]> novas) {
-        List<String[]> atuais = new ArrayList<>();
-        for (String[] l : ler()) if (!(l.length > col && l[col].equals(chave))) atuais.add(l);
-        atuais.addAll(novas);
-        gravar(atuais);
-    }
-
-    public static String campo(Object o) {
-        return o == null ? "" : o.toString().replace(";", ",").replace("\n", " ");
+    private String limpar(String valor) {
+        return valor == null ? "" : valor.replace(SEP, ",").replace("\r", "").replace("\n", " ").trim();
     }
 }

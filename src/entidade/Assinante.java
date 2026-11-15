@@ -1,71 +1,86 @@
 package entidade;
 
-import java.util.ArrayList;
-import java.util.List;
-
+/**
+ * <<Entidade>> Assinante.
+ */
 public class Assinante {
-    private final String numeroCelular;
-    private String nome = "";
-    private boolean validado;
-    private CodigoConfirmacao codigo;
-    private final List<PreferenciaAlimentar> preferencias = new ArrayList<>();
-    private final List<EnderecoEntrega> enderecosEntrega = new ArrayList<>();
-    private final List<EnderecoCobranca> enderecosCobranca = new ArrayList<>();
-    private final List<Assinatura> assinaturas = new ArrayList<>();
+    private String numeroCelular;
+    private boolean autenticado;
+    private CodigoConfirmacao codigoConfirmacao;
+    private PreferenciaAlimentar preferenciaAlimentar;
+    private Endereco endereco;
 
-    private Assinante(String numeroCelular) { this.numeroCelular = numeroCelular; }
-
-    /** <<create>> criar(numeroCelular) */
-    public static Assinante criar(String numeroCelular) { return new Assinante(numeroCelular); }
-
-    public static Assinante restaurar(String celular, String nome, boolean validado, CodigoConfirmacao cod) {
-        Assinante a = new Assinante(celular);
-        a.nome = nome; a.validado = validado; a.codigo = cod;
-        return a;
+    private Assinante(String celular) {
+        this.numeroCelular = celular;
+        this.autenticado = false;
     }
 
-    public String gerarCodigoConfirmacao() {
-        codigo = CodigoConfirmacao.criar();
-        validado = false;
-        return codigo.gerarCodigoSMS();
+    /** Mensagem 3: <<create>> criar(celular): Assinante */
+    public static Assinante criar(String celular) {
+        return new Assinante(celular);
     }
 
-    public boolean validarCodigoSMS(String codigoInformado) {
-        boolean valido = codigo != null && codigo.conferirCodigo(codigoInformado);
-        if (valido) {
-            confirmarValidacao();
-        } else if (codigo != null) {
-            int numTentativas = codigo.registrarTentativaInvalida();
-            if (numTentativas >= 3) codigo.encerrarValidacao();
+    /** Mensagem 4: gerarCodigoConfirmacao(): void */
+    public void gerarCodigoConfirmacao() {
+        // Mensagem 5: <<create>> criar(celular): CodigoConfirmacao
+        this.codigoConfirmacao = CodigoConfirmacao.criar(this.numeroCelular);
+        // Mensagem 6: enviarCodigoSMS(): void
+        this.codigoConfirmacao.enviarCodigoSMS();
+    }
+
+    /** Mensagem 9: validarCodigo(codigo): boolean */
+    public boolean validarCodigo(String codigo) {
+        if (this.codigoConfirmacao == null) {
+            return false;
         }
-        return valido;
+        // Mensagem 10: conferirCodigo(codigo): boolean
+        boolean ok = this.codigoConfirmacao.conferirCodigo(codigo);
+        if (ok) {
+            // Mensagem 11: confirmarAutenticacao(): void
+            this.confirmarAutenticacao();
+        } else {
+            // Mensagem 12: registrarTentativaInvalida(): void
+            this.codigoConfirmacao.registrarTentativaInvalida();
+        }
+        return ok;
     }
 
-    public void confirmarValidacao() { this.validado = true; }
-
-    public void vincularAssinatura(Assinatura assinatura) { assinaturas.add(assinatura); }
-
-    public void adicionarPreferencia(String tipoDieta) {
-        for (PreferenciaAlimentar p : preferencias)
-            if (p.getTipoDieta().equalsIgnoreCase(tipoDieta)) return;
-        preferencias.add(PreferenciaAlimentar.criar(tipoDieta));
+    /** Mensagem 11: confirmarAutenticacao(): void */
+    public void confirmarAutenticacao() {
+        this.autenticado = true;
     }
 
-    public List<PreferenciaAlimentar> getPreferencias() { return preferencias; }
-
-    public EnderecoEntrega cadastrarEnderecos(String dadosEntrega, String dadosCobranca) {
-        EnderecoEntrega ee = EnderecoEntrega.criar(dadosEntrega);
-        EnderecoCobranca ec = EnderecoCobranca.criar(dadosCobranca);
-        enderecosEntrega.add(ee);
-        enderecosCobranca.add(ec);
-        return ee;
+    /** Mensagem 26: adicionarPreferencia(tipoDieta): PreferenciaAlimentar */
+    public PreferenciaAlimentar adicionarPreferencia(String tipoDieta) {
+        // Mensagem 27: <<create>> criar(tipoDieta): PreferenciaAlimentar
+        this.preferenciaAlimentar = PreferenciaAlimentar.criar(tipoDieta);
+        return this.preferenciaAlimentar;
     }
 
-    public String getNumeroCelular() { return numeroCelular; }
-    public String getNome() { return nome; }
-    public boolean isValidado() { return validado; }
-    public CodigoConfirmacao getCodigo() { return codigo; }
-    public List<EnderecoEntrega> getEnderecosEntrega() { return enderecosEntrega; }
-    public List<EnderecoCobranca> getEnderecosCobranca() { return enderecosCobranca; }
-    public List<Assinatura> getAssinaturas() { return assinaturas; }
+    /** Mensagem 48: cadastrarEndereco(dadosEndereco): Endereco */
+    public Endereco cadastrarEndereco(String dadosEndereco) {
+        // Mensagem 49: <<create>> criar(dadosEndereco): Endereco
+        this.endereco = Endereco.criar(dadosEndereco);
+        return this.endereco;
+    }
+
+    public String getNumeroCelular() {
+        return numeroCelular;
+    }
+
+    public boolean isAutenticado() {
+        return autenticado;
+    }
+
+    public CodigoConfirmacao getCodigoConfirmacao() {
+        return codigoConfirmacao;
+    }
+
+    public PreferenciaAlimentar getPreferenciaAlimentar() {
+        return preferenciaAlimentar;
+    }
+
+    public Endereco getEndereco() {
+        return endereco;
+    }
 }

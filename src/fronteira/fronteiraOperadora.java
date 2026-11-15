@@ -2,18 +2,23 @@ package fronteira;
 
 import entidade.OperadoraCartaoCredito;
 
-/** Fronteira com o sistema externo da operadora de cartão (gateway simulado). */
+/**
+ * <<Fronteira>> Fronteira de comunicação com o ator secundário Operadora de Cartão de Crédito.
+ */
 public class fronteiraOperadora {
-    private final String endpointGateway = "https://gateway.operadora.simulado/autorizar";
-    private final OperadoraCartaoCredito operadora = new OperadoraCartaoCredito();
+    private OperadoraCartaoCredito operadora;
 
-    public String solicitarAutorizacao(String dadosCartao, double valorTotal) {
-        return enviarTransacao(dadosCartao, valorTotal);
+    public fronteiraOperadora() {
+        this.operadora = new OperadoraCartaoCredito();
     }
 
-    public String enviarTransacao(String dadosCartao, double valorTotal) {
-        return operadora.enviarTransacao(dadosCartao, valorTotal);
+    /** Mensagem 58: solicitarAutorizacao(dadosCartao, valor): boolean */
+    public boolean solicitarAutorizacao(String dadosCartao, double valor) {
+        // Mensagem 59: autorizarTransacao(dadosCartao, valor): boolean
+        return operadora.autorizarTransacao(dadosCartao, valor);
     }
 
-    public String getEndpointGateway() { return endpointGateway; }
+    public OperadoraCartaoCredito getOperadora() {
+        return operadora;
+    }
 }
